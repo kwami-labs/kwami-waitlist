@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, shallowRef } from 'vue';
+import { ref, onMounted, onUnmounted, shallowRef, watch } from 'vue';
 import type { Kwami } from 'kwami';
 import type { KwamiConfig } from 'kwami';
+
+const props = defineProps<{
+  /** 0 = hero size, 1 = shrunken to fit inside phone screen */
+  phoneProgress?: number;
+}>();
 
 const RANDOMIZE_INTERVAL_MS = 2_000;
 
@@ -76,7 +81,20 @@ onMounted(async () => {
   kwamiRef.value = kwami;
 
   const isMobile = window.innerWidth <= 768;
-  kwami.avatar.setScale(isMobile ? 3.2 : 3.5);
+  const heroScale = isMobile ? 3.2 : 3.5;
+  kwami.avatar.setScale(heroScale);
+
+  // Smooth blob scale toward phone screen size when phoneProgress changes.
+  let currentScale = heroScale;
+  const phoneScaleTarget = 2.15;
+  watch(
+    () => props.phoneProgress ?? 0,
+    (p) => {
+      const target = heroScale + (phoneScaleTarget - heroScale) * p;
+      currentScale = target;
+      kwami.avatar.setScale(target);
+    },
+  );
 
   // Capture blob once — do not re-fetch from kwamiRef inside timer.
   const blob = kwami.avatar.getBlob();
@@ -152,7 +170,7 @@ onUnmounted(async () => {
 .waitlist-blob {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 3;
   pointer-events: none;
   opacity: 0.82;
 }

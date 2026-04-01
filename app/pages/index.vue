@@ -38,6 +38,24 @@ const features = [
   },
 ];
 
+const phoneFeatures = [
+  {
+    eyebrow: 'Voice calls',
+    heading: 'Call your\ncompanion',
+    desc: 'Start a real-time voice call with Kwami. It listens, responds, and reacts with expressive 3D animation — like talking to someone who actually gets you.',
+  },
+  {
+    eyebrow: 'Video chats',
+    heading: 'Face to\nface',
+    desc: 'Kwami shows up as a living 3D avatar on your screen. See it react, emote, and express itself while you talk — no static chatbot interface.',
+  },
+  {
+    eyebrow: 'Always with you',
+    heading: 'Your pocket\ncompanion',
+    desc: 'Whether you need a quick answer, a creative brainstorm, or just someone to talk to — Kwami is one tap away, anywhere.',
+  },
+];
+
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
@@ -47,14 +65,42 @@ const canSubmit = computed(() => {
   return e.length > 3 && e.length <= 254 && emailPattern.test(e);
 });
 
+// Phase 1: Hero collapse (0 → 1vh)
 const heroProgress = computed(() => clamp(scrollY.value / (viewportH.value * 0.95), 0, 1));
 const collapseProgress = computed(() => clamp((heroProgress.value - 0.1) / 0.8, 0, 1));
 const infoFade = computed(() => 1 - clamp((heroProgress.value - 0.35) / 0.45, 0, 1));
 const headerVisibility = computed(() => clamp((heroProgress.value - 0.45) / 0.35, 0, 1));
 
-const blobStyle = computed(() => ({
-  transform: `translate3d(${-22 * collapseProgress.value}vw, 0, 0) scale(${1 - 0.08 * collapseProgress.value})`,
-}));
+// Phase 2: Features (1vh → 5vh) — blob stays left during this phase
+const featuresScrollStart = computed(() => viewportH.value * 1.0);
+const featuresScrollEnd = computed(() => viewportH.value * 5.0);
+
+// Phase 3-4: Phone enters + blob shrinks into phone (5vh → 7.5vh)
+const phoneProgress = computed(() => {
+  const start = viewportH.value * 4.1;
+  const end = viewportH.value * 5.8;
+  return clamp((scrollY.value - start) / (end - start), 0, 1);
+});
+
+const blobPhoneProgress = computed(() => {
+  const start = viewportH.value * 4.35;
+  const end = viewportH.value * 6.0;
+  return clamp((scrollY.value - start) / (end - start), 0, 1);
+});
+
+// (phone features are simple scroll sections, no computed needed)
+
+// Blob positioning: left during hero/features, then right into phone
+const blobStyle = computed(() => {
+  const p = blobPhoneProgress.value;
+  const heroShift = -22 * collapseProgress.value;
+  const phoneShift = 25 * p;
+  const shiftX = heroShift * (1 - p) + phoneShift;
+  const shiftY = -12 * p;
+  return {
+    transform: `translate3d(${shiftX}vw, ${shiftY}vh, 0)`,
+  };
+});
 
 const titleStyle = computed(() => {
   const moveX = -42 * collapseProgress.value;
@@ -78,7 +124,7 @@ const introFormStyle = computed(() => {
 
 const headerStyle = computed(() => ({
   opacity: String(headerVisibility.value),
-  pointerEvents: headerVisibility.value > 0.85 ? 'auto' : 'none',
+  pointerEvents: (headerVisibility.value > 0.85 ? 'auto' : 'none') as 'auto' | 'none',
 }));
 
 function updateScrollMetrics() {
@@ -122,21 +168,27 @@ async function submit() {
   <div class="page">
     <div class="ambient" aria-hidden="true" />
 
+    <!-- Blob: fixed, shifts left during features, right into phone -->
     <div class="blob-zone" :style="blobStyle">
       <ClientOnly>
-        <WaitlistBlob />
+        <WaitlistBlob :phone-progress="blobPhoneProgress" />
         <template #fallback>
           <div class="blob-fallback" aria-hidden="true" />
         </template>
       </ClientOnly>
     </div>
 
+    <!-- Phone: fixed, right half, enters after features -->
+    <ClientOnly>
+      <WaitlistPhone :progress="phoneProgress" />
+    </ClientOnly>
+
+    <!-- Sticky header -->
     <header class="floating-header" :style="headerStyle">
       <div class="header-left">
         <WaitlistLogo width="92px" />
         <span class="header-title">KWAMI</span>
       </div>
-
       <form v-if="status !== 'success'" class="header-form" @submit.prevent="submit">
         <label class="sr-only" for="waitlist-email-header">Email</label>
         <input
@@ -160,18 +212,19 @@ async function submit() {
     </header>
 
     <main class="scroll-main">
+      <!-- Phase 1: Hero -->
       <section class="hero-section">
         <div class="hero-inner">
           <h1 class="title" :style="titleStyle" aria-label="kwami">
             <span class="title-main">KWAMI</span>
-            <span class="title-sub">AI COMPANION</span>
+            <span class="title-sub">THE AI THAT FEELS ALIVE</span>
           </h1>
 
           <div class="intro-copy" :style="{ opacity: infoFade }">
             <p class="lede">
               3D companions that hear you, speak with you, and evolve with your style.
             </p>
-            <div class="features">
+            <div class="features-pills">
               <span class="pill">3D Avatars</span>
               <span class="pill">Voice AI</span>
               <span class="pill">Real-time</span>
@@ -222,10 +275,22 @@ async function submit() {
         </div>
       </section>
 
+      <!-- Phase 2: Feature sections — blob left, text right -->
       <section v-for="feature in features" :key="feature.letter" class="feature-section">
-        <div class="feature-letter">{{ feature.letter }}</div>
-        <h2 class="feature-title">{{ feature.title }}</h2>
-        <p class="feature-description">{{ feature.description }}</p>
+        <div class="feature-content">
+          <div class="feature-letter">{{ feature.letter }}</div>
+          <h2 class="feature-title">{{ feature.title }}</h2>
+          <p class="feature-description">{{ feature.description }}</p>
+        </div>
+      </section>
+
+      <!-- Phase 3-5: Phone features — each one is a full scroll section, text on the left -->
+      <section v-for="(pf, i) in phoneFeatures" :key="'pf-' + i" class="phone-feature-section">
+        <div class="phone-feature-content">
+          <p class="pf-eyebrow">{{ pf.eyebrow }}</p>
+          <h2 class="pf-heading">{{ pf.heading }}</h2>
+          <p class="pf-desc">{{ pf.desc }}</p>
+        </div>
       </section>
     </main>
   </div>
@@ -259,9 +324,9 @@ async function submit() {
 .blob-zone {
   position: fixed;
   inset: 0;
-  z-index: 1;
+  z-index: 3;
   pointer-events: none;
-  transition: transform 140ms linear;
+  transition: transform 120ms linear;
 }
 
 .blob-fallback {
@@ -309,6 +374,7 @@ async function submit() {
   z-index: 10;
 }
 
+/* Phase 1: Hero */
 .hero-section {
   min-height: 100dvh;
   display: grid;
@@ -360,7 +426,7 @@ async function submit() {
   margin: 0.2rem auto 1rem;
 }
 
-.features {
+.features-pills {
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
@@ -463,38 +529,85 @@ async function submit() {
   color: rgba(160, 168, 190, 0.9);
 }
 
+/* Phase 2: Feature sections — text right, blob visible left */
 .feature-section {
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
   align-items: center;
-  text-align: center;
-  padding: 5.5rem 1.2rem 2rem;
+  justify-content: flex-end;
+  padding: 4rem clamp(2rem, 8vw, 6rem) 4rem 50%;
   position: relative;
   z-index: 12;
 }
 
+.feature-content {
+  max-width: 30rem;
+  text-align: left;
+}
+
 .feature-letter {
-  font-size: clamp(2.2rem, 14vw, 8rem);
+  font-size: clamp(2.2rem, 10vw, 6rem);
   font-weight: 900;
   letter-spacing: 0.08em;
   color: rgba(246, 248, 255, 0.94);
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.65rem;
   text-shadow: 0 0 28px rgba(53, 158, 238, 0.18);
 }
 
 .feature-title {
-  font-size: clamp(1.24rem, 3.1vw, 2rem);
+  font-size: clamp(1.2rem, 2.8vw, 1.8rem);
   color: #f4f7ff;
   margin-bottom: 0.55rem;
 }
 
 .feature-description {
-  max-width: 52ch;
-  font-size: clamp(0.94rem, 1.6vw, 1.08rem);
+  max-width: 42ch;
+  font-size: clamp(0.92rem, 1.5vw, 1.05rem);
   line-height: 1.72;
   color: rgba(174, 184, 206, 0.96);
+}
+
+/* Phase 3-5: Phone feature sections — text left, phone+blob stay fixed right */
+.phone-feature-section {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 15;
+}
+
+.phone-feature-content {
+  width: 50%;
+  padding-left: clamp(2rem, 8vw, 6rem);
+  padding-right: 2rem;
+  max-width: 34rem;
+}
+
+.pf-eyebrow {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #03cea4;
+  margin-bottom: 0.65rem;
+}
+
+.pf-heading {
+  font-size: clamp(2rem, 4.5vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: #f6f8ff;
+  margin-bottom: 0.85rem;
+  text-shadow: 0 0 28px rgba(53, 158, 238, 0.18);
+  white-space: pre-line;
+}
+
+.pf-desc {
+  font-size: clamp(0.9rem, 1.5vw, 1.05rem);
+  line-height: 1.68;
+  color: rgba(174, 184, 206, 0.92);
+  max-width: 36ch;
 }
 
 .swap-enter-active,
@@ -547,6 +660,16 @@ async function submit() {
   .btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .feature-section {
+    padding-left: 1.2rem;
+    justify-content: center;
+  }
+
+  .phone-features-left {
+    width: 100%;
+    padding-right: 1.2rem;
   }
 }
 </style>

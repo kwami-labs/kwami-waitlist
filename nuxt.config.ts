@@ -3,6 +3,11 @@ export default defineNuxtConfig({
   // Nuxt 4-style layout: app code lives under app/
   srcDir: 'app/',
 
+  // Static assets live in <root>/public, not app/public
+  dir: {
+    public: '../public',
+  },
+
   compatibilityDate: '2025-03-01',
   devtools: { enabled: true },
 
