@@ -1,0 +1,16 @@
+[
+  {
+    "id": "john",
+    "name": "John",
+    "tagline": "Warm and grounded",
+    "description": "A calm, trustworthy personality with a natural conversational tone.",
+    "audio": "/voices/john.mp3"
+  },
+  {
+    "id": "tech",
+    "name": "Tech",
+    "tagline": "Curious and analytical",
+    "description": "A curious and analytical personality with a deep interest in technology and science.",
+    "audio": "/voices/tech.mp3"
+  }
+]

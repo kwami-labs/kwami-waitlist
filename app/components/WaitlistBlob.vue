@@ -15,11 +15,13 @@ const kwamiRef = shallowRef<Kwami | null>(null);
 let rafId: number | null = null;
 let randomizeTimer: ReturnType<typeof setInterval> | null = null;
 let removePointerHandlers: (() => void) | null = null;
+let removePreviewAudioHandlers: (() => void) | null = null;
+let removeClickProxyHandler: (() => void) | null = null;
 
 const PALETTE = ['#359EEE', '#FFC43D', '#EF476F', '#03CEA4'] as const;
 
 const ALL_SUBTYPES = [
-  'poles', 'donut', 'vintage', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
+  'radial', 'banded', 'striped', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
   'matte', 'glossy', 'metallic', 'subsurface',
   'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
   'flat', 'stepped', 'halftone', 'outlined',
@@ -100,11 +102,23 @@ onMounted(async () => {
   const blob = kwami.avatar.getBlob();
   const blobMesh = blob?.getMesh();
 
+  // Make click/touch interaction feel more like the stronger
+  // "Touch Physics" squeeze from the app.
+  if (blob) {
+    try { blob.setTouchStrength(0.7); } catch {}
+    try { blob.setTouchDuration(500); } catch {}
+    try { blob.setMaxTouchPoints(8); } catch {}
+  }
+
   // Pointer-driven rotation.
   if (blobMesh) {
     let targetY = Math.PI / 2;
     let targetX = 0;
     let hasPointerInput = false;
+    let burstRemaining = 0;
+    let accumulatedYawOffset = 0;
+    let accumulatedPitchOffset = 0;
+    let randomizeCount = 0;
 
     const onPointerMove = (e: PointerEvent) => {
       const nx = (e.clientX / window.innerWidth) * 2 - 1;
@@ -125,38 +139,109 @@ onMounted(async () => {
     const animate = () => {
       const driftY = Math.sin(performance.now() * 0.00025) * 0.08;
       const driftX = Math.cos(performance.now() * 0.0002) * 0.04;
-      blobMesh.rotation.y += ((hasPointerInput ? targetY : Math.PI / 2 + driftY) - blobMesh.rotation.y) * 0.08;
-      blobMesh.rotation.x += ((hasPointerInput ? targetX : driftX) - blobMesh.rotation.x) * 0.08;
+
+      if (burstRemaining > 0.0001) {
+        const spinStep = Math.min(0.12, Math.max(0.01, burstRemaining * 0.055));
+        accumulatedYawOffset += spinStep;
+        accumulatedPitchOffset += spinStep * 0.04;
+        burstRemaining = Math.max(0, burstRemaining - spinStep);
+      }
+
+      const desiredY = (hasPointerInput ? targetY : Math.PI / 2 + driftY) + accumulatedYawOffset;
+      const desiredX = (hasPointerInput ? targetX : driftX) + accumulatedPitchOffset;
+
+      blobMesh.rotation.y += (desiredY - blobMesh.rotation.y) * 0.08;
+      blobMesh.rotation.x += (desiredX - blobMesh.rotation.x) * 0.08;
+
       rafId = requestAnimationFrame(animate);
     };
     animate();
+
+    // Forward global clicks to the blob canvas so the built-in
+    // raycast touch/pulse effect still works even when layout layers
+    // sit visually above the canvas.
+    const proxyClickToCanvas = (event: MouseEvent) => {
+      const forwarded = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        button: event.button,
+        buttons: event.buttons,
+        ctrlKey: event.ctrlKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        metaKey: event.metaKey,
+      });
+      canvas.dispatchEvent(forwarded);
+    };
+
+    window.addEventListener('click', proxyClickToCanvas, { passive: true });
+    removeClickProxyHandler = () => {
+      window.removeEventListener('click', proxyClickToCanvas);
+    };
+ 
+    // Import randomizer helpers from the library — same as kwami-app panel.
+    const { randomBlobSkinType, blobSkinSelectionFromSubtype } = await import('kwami') as any;
+
+    const doRandomize = () => {
+      if (!blob) return;
+
+      // Pick a random subtype using the library randomizer (matches app panel behavior).
+      const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
+      try { kwami.avatar.setSkin(blobSkinSelectionFromSubtype(subtype)); } catch {}
+      try { blob.setColors(randColor(), randColor(), randColor()); } catch {}
+      try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
+      try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
+      try { blob.setSpikes(rand(0.1, 3), rand(0.1, 3), rand(0.1, 3)); } catch {}
+      try { blob.setAmplitude(rand(0.3, 1.5), rand(0.3, 1.5), rand(0.3, 1.5)); } catch {}
+      try { blob.setTime(rand(0.5, 8), rand(0.5, 8), rand(0.5, 8)); } catch {}
+
+      randomizeCount += 1;
+      if (randomizeCount % 5 === 0) {
+        burstRemaining = Math.PI / (4);
+      }
+    };
+
+    doRandomize();
+    randomizeTimer = setInterval(doRandomize, RANDOMIZE_INTERVAL_MS);
   }
 
-  // Import randomizer helpers from the library — same as kwami-app panel.
-  const { randomBlobSkinType, blobSkinSelectionFromSubtype } = await import('kwami') as any;
-
-  const doRandomize = () => {
-    if (!blob) return;
-
-    // Pick a random subtype using the library randomizer (matches app panel behavior).
-    const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-    try { kwami.avatar.setSkin(blobSkinSelectionFromSubtype(subtype)); } catch {}
-    try { blob.setColors(randColor(), randColor(), randColor()); } catch {}
-    try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
-    try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
-    try { blob.setSpikes(rand(0.1, 3), rand(0.1, 3), rand(0.1, 3)); } catch {}
-    try { blob.setAmplitude(rand(0.3, 1.5), rand(0.3, 1.5), rand(0.3, 1.5)); } catch {}
-    try { blob.setTime(rand(0.5, 8), rand(0.5, 8), rand(0.5, 8)); } catch {}
+  const onPreviewStart = async (event: Event) => {
+    const customEvent = event as CustomEvent<{ stream?: MediaStream }>;
+    const stream = customEvent.detail?.stream;
+    if (!stream) return;
+    try {
+      await kwami.avatar.connectMediaStream(stream);
+      kwami.avatar.setState('speaking');
+    } catch {
+      // Ignore preview audio hookup failures; blob still works normally.
+    }
   };
 
-  doRandomize();
-  randomizeTimer = setInterval(doRandomize, RANDOMIZE_INTERVAL_MS);
+  const onPreviewStop = () => {
+    try {
+      kwami.avatar.disconnectMediaStream();
+      kwami.avatar.setState('idle');
+    } catch {
+      // Ignore disconnect failures
+    }
+  };
+
+  window.addEventListener('landing:voice-preview-start', onPreviewStart as EventListener);
+  window.addEventListener('landing:voice-preview-stop', onPreviewStop);
+  removePreviewAudioHandlers = () => {
+    window.removeEventListener('landing:voice-preview-start', onPreviewStart as EventListener);
+    window.removeEventListener('landing:voice-preview-stop', onPreviewStop);
+  };
 });
 
 onUnmounted(async () => {
   if (randomizeTimer !== null) { clearInterval(randomizeTimer); randomizeTimer = null; }
   if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
   if (removePointerHandlers) { removePointerHandlers(); removePointerHandlers = null; }
+  if (removePreviewAudioHandlers) { removePreviewAudioHandlers(); removePreviewAudioHandlers = null; }
+  if (removeClickProxyHandler) { removeClickProxyHandler(); removeClickProxyHandler = null; }
   const k = kwamiRef.value;
   if (k) { await k.dispose(); kwamiRef.value = null; }
 });
@@ -171,7 +256,7 @@ onUnmounted(async () => {
   position: absolute;
   inset: 0;
   z-index: 3;
-  pointer-events: none;
+  pointer-events: auto;
   opacity: 0.82;
 }
 </style>

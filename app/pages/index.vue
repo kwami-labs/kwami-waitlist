@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import memoryGraphMock from '~/assets/data/memory-graph.mock.json';
+import personalitiesMock from '~/assets/data/personalities.mock.json';
 
 const supabase = useSupabaseClient();
 
@@ -250,13 +251,21 @@ async function submit() {
       />
 
       <!-- Phase 2: Feature sections — blob left, text right -->
-      <LandingFeatureSection
-        v-for="feature in features"
-        :key="feature.letter"
-        :letter="feature.letter"
-        :title="feature.title"
-        :description="feature.description"
-      />
+      <template v-for="feature in features" :key="feature.letter">
+        <LandingSoulSection
+          v-if="feature.letter === 'SOUL'"
+          :letter="feature.letter"
+          :title="feature.title"
+          :description="feature.description"
+          :personalities="personalitiesMock"
+        />
+        <LandingFeatureSection
+          v-else
+          :letter="feature.letter"
+          :title="feature.title"
+          :description="feature.description"
+        />
+      </template>
 
       <!-- Phase 3-5: Phone features — each one is a full scroll section, text on the left -->
       <LandingPhoneFeatureSection
