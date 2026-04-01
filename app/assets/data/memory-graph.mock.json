@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    { "id": "kwami", "label": "Kwami", "type": "assistant" },
+    { "id": "alex", "label": "Alex", "type": "user" },
+    { "id": "voice", "label": "Voice chats", "type": "activity" },
+    { "id": "video", "label": "Video calls", "type": "event" },
+    { "id": "memory", "label": "Long-term memory", "type": "fact" },
+    { "id": "design", "label": "Loves design systems", "type": "preference" },
+    { "id": "music", "label": "Listens while working", "type": "preference" },
+    { "id": "paris", "label": "Paris", "type": "location" },
+    { "id": "kwamiApp", "label": "Kwami App", "type": "product" },
+    { "id": "waitlist", "label": "Waitlist launch", "type": "project" },
+    { "id": "friends", "label": "Close friends", "type": "person" },
+    { "id": "travel", "label": "Travel plans", "type": "goal" }
+  ],
+  "edges": [
+    { "source": "alex", "target": "kwami", "relation": "talks_to" },
+    { "source": "kwami", "target": "memory", "relation": "remembers" },
+    { "source": "kwami", "target": "voice", "relation": "supports" },
+    { "source": "kwami", "target": "video", "relation": "supports" },
+    { "source": "alex", "target": "design", "relation": "likes" },
+    { "source": "alex", "target": "music", "relation": "enjoys" },
+    { "source": "alex", "target": "paris", "relation": "lives_in" },
+    { "source": "alex", "target": "travel", "relation": "plans" },
+    { "source": "alex", "target": "friends", "relation": "cares_about" },
+    { "source": "kwami", "target": "kwamiApp", "relation": "lives_in" },
+    { "source": "kwamiApp", "target": "waitlist", "relation": "launches_with" },
+    { "source": "memory", "target": "design", "relation": "stores" },
+    { "source": "memory", "target": "music", "relation": "stores" },
+    { "source": "memory", "target": "friends", "relation": "stores" },
+    { "source": "video", "target": "friends", "relation": "connects" },
+    { "source": "voice", "target": "travel", "relation": "helps_with" }
+  ]
+}

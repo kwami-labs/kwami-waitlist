@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import memoryGraphMock from '~/assets/data/memory-graph.mock.json';
 
 const supabase = useSupabaseClient();
 
@@ -88,7 +89,41 @@ const blobPhoneProgress = computed(() => {
   return clamp((scrollY.value - start) / (end - start), 0, 1);
 });
 
-// (phone features are simple scroll sections, no computed needed)
+// MEMORY graph takeover: enters from bottom, crosses, then exits to top.
+const memoryGraphProgress = computed(() => {
+  const start = viewportH.value * 1.55;
+  const end = viewportH.value * 3.75;
+  return clamp((scrollY.value - start) / (end - start), 0, 1);
+});
+
+// Fade the blob out during the MEMORY section, then bring it back.
+const memoryBlobOpacity = computed(() => {
+  const start = viewportH.value * 1.75;
+  const end = viewportH.value * 3.25;
+  const p = clamp((scrollY.value - start) / (end - start), 0, 1);
+  return 1 - Math.sin(p * Math.PI);
+});
+
+const memoryGraphStyle = computed(() => {
+  const p = memoryGraphProgress.value;
+  let translateY = 55;
+  let opacity = 0;
+
+  if (p <= 0.5) {
+    const t = p / 0.5;
+    translateY = (1 - t) * 55;
+    opacity = t;
+  } else {
+    const t = (p - 0.5) / 0.5;
+    translateY = -t * 55;
+    opacity = 1 - t * 0.15;
+  }
+
+  return {
+    transform: `translate3d(0, ${translateY}vh, 0)`,
+    opacity: String(opacity),
+  };
+});
 
 // Blob positioning: left during hero/features, then right into phone
 const blobStyle = computed(() => {
@@ -99,6 +134,7 @@ const blobStyle = computed(() => {
   const shiftY = -12 * p;
   return {
     transform: `translate3d(${shiftX}vw, ${shiftY}vh, 0)`,
+    opacity: String(memoryBlobOpacity.value),
   };
 });
 
@@ -182,6 +218,12 @@ async function submit() {
     <ClientOnly>
       <WaitlistPhone :progress="phoneProgress" />
     </ClientOnly>
+
+    <div class="memory-graph-overlay" :style="memoryGraphStyle" aria-hidden="true">
+      <ClientOnly>
+        <WaitlistMemoryGraph3D :graph="memoryGraphMock" />
+      </ClientOnly>
+    </div>
 
     <!-- Sticky header -->
     <header class="floating-header" :style="headerStyle">
@@ -327,6 +369,14 @@ async function submit() {
   z-index: 3;
   pointer-events: none;
   transition: transform 120ms linear;
+}
+
+.memory-graph-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  transition: transform 180ms linear, opacity 180ms ease;
 }
 
 .blob-fallback {
@@ -532,17 +582,21 @@ async function submit() {
 /* Phase 2: Feature sections — text right, blob visible left */
 .feature-section {
   min-height: 100dvh;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 48vw) minmax(18rem, 32rem);
   align-items: center;
-  justify-content: flex-end;
-  padding: 4rem clamp(2rem, 8vw, 6rem) 4rem 50%;
+  justify-content: center;
+  column-gap: clamp(1rem, 3vw, 2rem);
+  padding: 4rem clamp(2rem, 8vw, 6rem);
   position: relative;
   z-index: 12;
 }
 
 .feature-content {
-  max-width: 30rem;
+  grid-column: 2;
+  max-width: 32rem;
   text-align: left;
+  justify-self: start;
 }
 
 .feature-letter {
@@ -663,8 +717,9 @@ async function submit() {
   }
 
   .feature-section {
+    grid-template-columns: 1fr;
     padding-left: 1.2rem;
-    justify-content: center;
+    padding-right: 1.2rem;
   }
 
   .phone-features-left {
