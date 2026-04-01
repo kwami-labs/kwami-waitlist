@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{
+  id?: string;
   letter: string;
   title: string;
   description: string;
@@ -7,7 +8,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <section class="feature-section">
+  <section class="feature-section" :id="props.id">
     <div class="feature-content">
       <div class="feature-letter">{{ props.letter }}</div>
       <h2 class="feature-title">{{ props.title }}</h2>

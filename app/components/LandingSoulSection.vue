@@ -10,6 +10,7 @@ type Personality = {
 };
 
 const props = defineProps<{
+  id?: string;
   letter: string;
   title: string;
   description: string;
@@ -82,7 +83,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section class="feature-section">
+  <section class="feature-section" :id="props.id">
     <div class="feature-content soul-content">
       <div class="feature-copy">
         <div class="feature-letter">{{ props.letter }}</div>

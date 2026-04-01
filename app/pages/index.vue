@@ -254,6 +254,7 @@ async function submit() {
       <template v-for="feature in features" :key="feature.letter">
         <LandingSoulSection
           v-if="feature.letter === 'SOUL'"
+          id="soul"
           :letter="feature.letter"
           :title="feature.title"
           :description="feature.description"
@@ -261,6 +262,7 @@ async function submit() {
         />
         <LandingFeatureSection
           v-else
+          :id="feature.letter.toLowerCase()"
           :letter="feature.letter"
           :title="feature.title"
           :description="feature.description"
@@ -276,6 +278,8 @@ async function submit() {
         :desc="pf.desc"
       />
     </main>
+
+    <LandingFooter />
   </div>
 </template>
 
