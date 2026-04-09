@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 
-export interface WaitlistRingsProps {
+export interface RingsProps {
   ringCount?: number;
   baseRadiusRatio?: number;
   ringStrokeWidth?: number;
@@ -21,7 +21,7 @@ export interface WaitlistRingsProps {
   expandDurationMs?: number;
 }
 
-const props = withDefaults(defineProps<WaitlistRingsProps>(), {
+const props = withDefaults(defineProps<RingsProps>(), {
   ringCount: 120,
   baseRadiusRatio: 0.16,
   ringStrokeWidth: 2,
@@ -279,7 +279,7 @@ function createEllipses() {
 
   for (let i = 0; i < props.ringCount; i++) {
     const e = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
-    e.classList.add('kwami-waitlist-ring');
+    e.classList.add('kwami-ring');
     e.setAttribute('fill', 'none');
     e.setAttribute('stroke-width', String(props.ringStrokeWidth));
     ellipseRefs.push(e);
@@ -337,7 +337,7 @@ const gradientId = `kwami-waitlist-grad-${Math.random().toString(36).slice(2, 8)
 
 <template>
   <div
-    class="kwami-waitlist-rings"
+    class="kwami-rings"
     :style="{
       zIndex: zIndex,
       opacity: opacity,
@@ -362,7 +362,7 @@ const gradientId = `kwami-waitlist-grad-${Math.random().toString(36).slice(2, 8)
         </linearGradient>
       </defs>
 
-      <g ref="ringsGroupRef" id="kwami-waitlist-rings-group" />
+      <g ref="ringsGroupRef" id="kwami-rings-group" />
 
       <path
         v-if="includeWordmark"
@@ -381,7 +381,7 @@ const gradientId = `kwami-waitlist-grad-${Math.random().toString(36).slice(2, 8)
 </template>
 
 <style scoped>
-.kwami-waitlist-rings {
+.kwami-rings {
   position: fixed;
   inset: 0;
   pointer-events: none;

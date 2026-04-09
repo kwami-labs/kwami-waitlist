@@ -106,7 +106,7 @@ onMounted(async () => {
   // "Touch Physics" squeeze from the app.
   if (blob) {
     try { blob.setTouchStrength(0.7); } catch {}
-    try { blob.setTouchDuration(500); } catch {}
+    try { blob.setTouchDuration(800); } catch {}
     try { blob.setMaxTouchPoints(8); } catch {}
   }
 
@@ -228,11 +228,11 @@ onMounted(async () => {
     }
   };
 
-  window.addEventListener('landing:voice-preview-start', onPreviewStart as EventListener);
-  window.addEventListener('landing:voice-preview-stop', onPreviewStop);
+  window.addEventListener('voice-preview-start', onPreviewStart as EventListener);
+  window.addEventListener('voice-preview-stop', onPreviewStop);
   removePreviewAudioHandlers = () => {
-    window.removeEventListener('landing:voice-preview-start', onPreviewStart as EventListener);
-    window.removeEventListener('landing:voice-preview-stop', onPreviewStop);
+    window.removeEventListener('voice-preview-start', onPreviewStart as EventListener);
+    window.removeEventListener('voice-preview-stop', onPreviewStop);
   };
 });
 

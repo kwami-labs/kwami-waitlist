@@ -21,7 +21,7 @@ const activeId = ref<string | null>(null);
 let activeAudio: HTMLAudioElement | null = null;
 
 function dispatchPreviewStop() {
-  window.dispatchEvent(new CustomEvent('landing:voice-preview-stop'));
+  window.dispatchEvent(new CustomEvent('voice-preview-stop'));
 }
 
 function getAudioStream(audio: HTMLAudioElement): MediaStream | null {
@@ -66,7 +66,7 @@ async function togglePersonality(personality: Personality) {
     activeId.value = personality.id;
     const stream = getAudioStream(audio);
     if (stream) {
-      window.dispatchEvent(new CustomEvent('landing:voice-preview-start', { detail: { stream } }));
+      window.dispatchEvent(new CustomEvent('voice-preview-start', { detail: { stream } }));
     }
   } catch {
     activeAudio = null;

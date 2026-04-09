@@ -17,7 +17,7 @@ const openSourceLinks = [
   <footer class="landing-footer">
     <div class="footer-shell">
       <div class="footer-brand">
-        <LandingLogo width="180px" />
+        <Logo width="180px" />
         <p class="footer-tagline">
           AI companions that feel alive.
         </p>

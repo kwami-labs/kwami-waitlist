@@ -121,7 +121,7 @@ onMounted(async () => {
 
     scene.add(phoneGroup);
   } catch (err) {
-    console.error('[WaitlistPhone] Failed to load phone.glb:', err);
+    console.error('[Phone] Failed to load phone.glb:', err);
   }
 
   resizeHandler = () => {
