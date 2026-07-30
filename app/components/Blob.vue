@@ -72,7 +72,7 @@ onMounted(async () => {
         wireframe: false,
         shininess: rand(10, 120),
         colors,
-        skin: { skin: 'tricolor', subtype: 'poles' } as any,
+        skin: ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)],
       },
       scene: { enableControls: false },
     },
@@ -182,14 +182,15 @@ onMounted(async () => {
     };
  
     // Import randomizer helpers from the library — same as kwami-app panel.
-    const { randomBlobSkinType, blobSkinSelectionFromSubtype } = await import('kwami') as any;
+    const { randomBlobSkinType } = await import('kwami') as any;
 
     const doRandomize = () => {
       if (!blob) return;
 
       // Pick a random subtype using the library randomizer (matches app panel behavior).
+      // `setSkin` takes the skin name directly (BlobXyzSkin is a string union).
       const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-      try { kwami.avatar.setSkin(blobSkinSelectionFromSubtype(subtype)); } catch {}
+      try { kwami.avatar.setSkin(subtype); } catch {}
       try { blob.setColors(randColor(), randColor(), randColor()); } catch {}
       try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
       try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
