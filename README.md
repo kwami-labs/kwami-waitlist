@@ -122,20 +122,20 @@ its blob API differs:
 back to `2.0.0` — it is built on `avatarBlobPresets`, which that version does
 not ship at all.
 
-To unblock git-push deploys, publish the current `kwami` and switch this
-project to the registry version:
+`../kwami` is already prepared for release: the self-referential dependency on
+itself has been removed, the version bumped to **2.1.0**, and `dist` rebuilt
+(verified via `pnpm pack` — 12 blob presets present, no self-dep). All that is
+left is the publish, then repointing this project at the registry:
 
 ```bash
-# in ../kwami
-#   1. remove the self-referential "kwami": "2.0.0" from its own
-#      "dependencies" block — it should not be there
-#   2. bump version to 2.1.0
-pnpm build
+# in ../kwami  (branch: dev — commit the version bump first)
 pnpm publish
 
 # back here
 pnpm remove kwami && pnpm add kwami@^2.1.0
 ```
+
+Then remove the warning under "Deploy on git push" above.
 
 ## Restoring the long-form landing page
 
