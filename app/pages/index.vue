@@ -2,11 +2,11 @@
 // Single fullscreen waitlist page — no scrolling.
 //
 // The scrolling landing experience (feature sections, phone, memory graph,
-// footer) is archived, not deleted. To bring it back, restore the previous
-// version of this file from git and re-add the assets it needs:
-//   git show HEAD:app/pages/index.vue
+// footer) is archived, not deleted. To bring it back:
+//   git show 7e28d67:app/pages/index.vue
 // The components it used still live in app/components/ and the scroll driver
-// in app/composables/useScrollAnimations.ts.
+// in app/composables/useScrollAnimations.ts. Its .glb/.mp3 assets were deleted
+// to shrink the deploy — recover those from 7e28d67 too. See README.md.
 
 const {
   email,
