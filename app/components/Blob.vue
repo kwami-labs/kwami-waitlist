@@ -1,49 +1,39 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, shallowRef, watch } from 'vue';
-import type { Kwami } from 'kwami';
-import type { KwamiConfig } from 'kwami';
+import type { Kwami, KwamiConfig, AvatarBlobPreset } from 'kwami';
 
 const props = defineProps<{
   /** 0 = hero size, 1 = shrunken to fit inside phone screen */
   phoneProgress?: number;
 }>();
 
-const RANDOMIZE_INTERVAL_MS = 2_000;
+/**
+ * The blob cycles through the library's 12 curated presets (`avatarBlobPresets`)
+ * rather than randomising every parameter independently. Each preset is a
+ * designed look — coordinated palette, matched shininess/opacity/light, tuned
+ * spikes and wave timing — so every frame the page shows is one somebody chose.
+ * Fully random values mostly produce muddy colours and incoherent surfaces.
+ */
+const PRESET_INTERVAL_MS = 7_000;
+
+/** Low = slow morph between presets. The renderer eases toward each target. */
+const TRANSITION_SPEED = 0.015;
+
+/** Presets go up to resolution 280; that is a lot of vertices for a phone. */
+const MAX_MOBILE_RESOLUTION = 160;
 
 const containerRef = ref<HTMLDivElement | null>(null);
 const kwamiRef = shallowRef<Kwami | null>(null);
-let rafId: number | null = null;
-let randomizeTimer: ReturnType<typeof setInterval> | null = null;
-let removePointerHandlers: (() => void) | null = null;
+let presetTimer: ReturnType<typeof setInterval> | null = null;
+let removeClickHandler: (() => void) | null = null;
 let removePreviewAudioHandlers: (() => void) | null = null;
-let removeClickProxyHandler: (() => void) | null = null;
 
-const PALETTE = ['#359EEE', '#FFC43D', '#EF476F', '#03CEA4'] as const;
-
-const ALL_SUBTYPES = [
-  'radial', 'banded', 'striped', 'marble', 'fresnel', 'iridescent', 'spiral', 'plasma', 'gradient',
-  'matte', 'glossy', 'metallic', 'subsurface',
-  'chrome', 'clay', 'jade', 'toon-matcap', 'hologram',
-  'flat', 'stepped', 'halftone', 'outlined',
-] as const;
-
-type Subtype = typeof ALL_SUBTYPES[number];
-
-function rand(min: number, max: number) {
-  return min + Math.random() * (max - min);
+function isMobileViewport() {
+  return window.innerWidth <= 768;
 }
 
-function randColor() {
-  return `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`;
-}
-
-function shuffleColors(): { x: string; y: string; z: string } {
-  const a = [...PALETTE].sort(() => Math.random() - 0.5);
-  return { x: a[0]!, y: a[1]!, z: a[2]! };
-}
-
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
+function prefersReducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
 onMounted(async () => {
@@ -57,156 +47,130 @@ onMounted(async () => {
 
   await new Promise((r) => setTimeout(r, 10));
 
-  const spikes = { x: rand(0.15, 2.8), y: rand(0.15, 2.8), z: rand(0.15, 2.8) };
-  const timeConfig = { x: rand(0.8, 5.5), y: rand(0.8, 5.5), z: rand(0.8, 5.5) };
-  const colors = shuffleColors();
+  const { Kwami, avatarBlobPresets } = await import('kwami');
 
+  const isMobile = isMobileViewport();
+  const heroScale = isMobile ? 3.2 : 3.5;
+
+  const capResolution = (r: number) =>
+    isMobile ? Math.min(r, MAX_MOBILE_RESOLUTION) : r;
+
+  let current: AvatarBlobPreset =
+    avatarBlobPresets[Math.floor(Math.random() * avatarBlobPresets.length)]!;
+
+  // Seed the initial config from the first preset so the very first frame is
+  // already a designed look rather than a default blob that then jumps.
+  const seed = current.blob;
   const kwamiConfig: KwamiConfig = {
     avatar: {
       renderer: 'blob-xyz',
       blob: {
-        resolution: 160,
-        spikes,
-        time: timeConfig,
-        rotation: { x: 0, y: 0, z: 0 },
-        wireframe: false,
-        shininess: rand(10, 120),
-        colors,
-        skin: ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)],
+        skin: seed.skin?.type,
+        resolution: capResolution(seed.skin?.resolution ?? 160),
+        colors: seed.skin?.colors,
+        shininess: seed.skin?.shininess,
+        wireframe: seed.skin?.wireframe,
+        spikes: seed.shape?.spikes,
+        time: seed.animation?.time,
+        rotation: seed.animation?.rotation,
       },
       scene: { enableControls: false },
     },
   };
 
-  const { Kwami } = await import('kwami');
   const kwami = new Kwami(canvas, kwamiConfig);
   kwamiRef.value = kwami;
 
-  const isMobile = window.innerWidth <= 768;
-  const heroScale = isMobile ? 3.2 : 3.5;
   kwami.avatar.setScale(heroScale);
 
+  const blob = kwami.avatar.getBlob();
+
+  /**
+   * Push a whole preset onto the live blob.
+   *
+   * `blob.shape.position` is deliberately skipped: it is exposed in the app's
+   * settings panel as three 0–360° sliders, but nothing in the library maps it
+   * to a renderer call, so there is no correct setter to forward it to.
+   */
+  function applyPreset(preset: AvatarBlobPreset) {
+    if (!blob) return;
+    const { skin, shape, animation, cursorTouch } = preset.blob;
+
+    if (skin) {
+      if (skin.type) kwami.avatar.setSkin(skin.type);
+      if (skin.colors) blob.setColors(skin.colors.x, skin.colors.y, skin.colors.z);
+      if (skin.opacity !== undefined) blob.setOpacity(skin.opacity);
+      if (skin.shininess !== undefined) blob.setShininess(skin.shininess);
+      if (skin.lightIntensity !== undefined) blob.setLightIntensity(skin.lightIntensity);
+      if (skin.wireframe !== undefined) blob.setWireframe(skin.wireframe);
+      if (skin.glassMode !== undefined) blob.setGlassMode(skin.glassMode);
+      if (skin.resolution !== undefined) blob.setResolution(capResolution(skin.resolution));
+    }
+
+    if (shape) {
+      if (shape.spikes) blob.setSpikes(shape.spikes.x, shape.spikes.y, shape.spikes.z);
+      if (shape.amplitude) {
+        blob.setAmplitude(shape.amplitude.x, shape.amplitude.y, shape.amplitude.z);
+      }
+      // Preset scale is ignored on purpose — the hero needs the blob sized to
+      // fill the viewport, and each preset carries its own unrelated scale.
+    }
+
+    if (animation) {
+      if (animation.time) blob.setTime(animation.time.x, animation.time.y, animation.time.z);
+      if (animation.rotation) {
+        blob.setRotation(animation.rotation.x, animation.rotation.y, animation.rotation.z);
+      }
+      if (animation.breathing !== undefined) {
+        blob.audioEffects.breathing = animation.breathing;
+      }
+    }
+
+    if (cursorTouch?.touch) {
+      blob.setTouchStrength(cursorTouch.touch.strength);
+      blob.setTouchDuration(cursorTouch.touch.duration);
+      blob.setMaxTouchPoints(cursorTouch.touch.maxPoints);
+    }
+  }
+
+  if (blob) {
+    // Morph between presets instead of snapping to each one.
+    blob.setTransitionSpeed(TRANSITION_SPEED);
+
+    // Cursor tracking is built into the renderer — no hand-rolled pointermove
+    // listener or requestAnimationFrame loop needed.
+    blob.setCursorFollowEnabled(true);
+    blob.setCursorFollowSensitivity(isMobile ? 0.6 : 1);
+
+    applyPreset(current);
+
+    // A page-wide click pulses the blob even though the hero sits above the
+    // canvas. `triggerPulse` is the renderer's own entry point for this.
+    const onWindowClick = () => blob.triggerPulse();
+    window.addEventListener('click', onWindowClick, { passive: true });
+    removeClickHandler = () => window.removeEventListener('click', onWindowClick);
+
+    // Respect reduced-motion: settle on one designed look and stop cycling.
+    if (!prefersReducedMotion() && avatarBlobPresets.length > 1) {
+      presetTimer = setInterval(() => {
+        let next = current;
+        while (next.id === current.id) {
+          next = avatarBlobPresets[Math.floor(Math.random() * avatarBlobPresets.length)]!;
+        }
+        current = next;
+        applyPreset(current);
+      }, PRESET_INTERVAL_MS);
+    }
+  }
+
   // Smooth blob scale toward phone screen size when phoneProgress changes.
-  let currentScale = heroScale;
   const phoneScaleTarget = 2.15;
   watch(
     () => props.phoneProgress ?? 0,
     (p) => {
-      const target = heroScale + (phoneScaleTarget - heroScale) * p;
-      currentScale = target;
-      kwami.avatar.setScale(target);
+      kwami.avatar.setScale(heroScale + (phoneScaleTarget - heroScale) * p);
     },
   );
-
-  // Capture blob once — do not re-fetch from kwamiRef inside timer.
-  const blob = kwami.avatar.getBlob();
-  const blobMesh = blob?.getMesh();
-
-  // Make click/touch interaction feel more like the stronger
-  // "Touch Physics" squeeze from the app.
-  if (blob) {
-    try { blob.setTouchStrength(0.7); } catch {}
-    try { blob.setTouchDuration(800); } catch {}
-    try { blob.setMaxTouchPoints(8); } catch {}
-  }
-
-  // Pointer-driven rotation.
-  if (blobMesh) {
-    let targetY = Math.PI / 2;
-    let targetX = 0;
-    let hasPointerInput = false;
-    let burstRemaining = 0;
-    let accumulatedYawOffset = 0;
-    let accumulatedPitchOffset = 0;
-    let randomizeCount = 0;
-
-    const onPointerMove = (e: PointerEvent) => {
-      const nx = (e.clientX / window.innerWidth) * 2 - 1;
-      const ny = (e.clientY / window.innerHeight) * 2 - 1;
-      targetY = Math.PI / 2 + clamp(nx, -1, 1) * 1.1;
-      targetX = clamp(ny, -1, 1) * 0.55;
-      hasPointerInput = true;
-    };
-    const onPointerLeave = () => { hasPointerInput = false; };
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerleave', onPointerLeave, { passive: true });
-    removePointerHandlers = () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerleave', onPointerLeave);
-    };
-
-    const animate = () => {
-      const driftY = Math.sin(performance.now() * 0.00025) * 0.08;
-      const driftX = Math.cos(performance.now() * 0.0002) * 0.04;
-
-      if (burstRemaining > 0.0001) {
-        const spinStep = Math.min(0.12, Math.max(0.01, burstRemaining * 0.055));
-        accumulatedYawOffset += spinStep;
-        accumulatedPitchOffset += spinStep * 0.04;
-        burstRemaining = Math.max(0, burstRemaining - spinStep);
-      }
-
-      const desiredY = (hasPointerInput ? targetY : Math.PI / 2 + driftY) + accumulatedYawOffset;
-      const desiredX = (hasPointerInput ? targetX : driftX) + accumulatedPitchOffset;
-
-      blobMesh.rotation.y += (desiredY - blobMesh.rotation.y) * 0.08;
-      blobMesh.rotation.x += (desiredX - blobMesh.rotation.x) * 0.08;
-
-      rafId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    // Forward global clicks to the blob canvas so the built-in
-    // raycast touch/pulse effect still works even when layout layers
-    // sit visually above the canvas.
-    const proxyClickToCanvas = (event: MouseEvent) => {
-      const forwarded = new MouseEvent('click', {
-        bubbles: true,
-        cancelable: true,
-        clientX: event.clientX,
-        clientY: event.clientY,
-        button: event.button,
-        buttons: event.buttons,
-        ctrlKey: event.ctrlKey,
-        shiftKey: event.shiftKey,
-        altKey: event.altKey,
-        metaKey: event.metaKey,
-      });
-      canvas.dispatchEvent(forwarded);
-    };
-
-    window.addEventListener('click', proxyClickToCanvas, { passive: true });
-    removeClickProxyHandler = () => {
-      window.removeEventListener('click', proxyClickToCanvas);
-    };
- 
-    // Import randomizer helpers from the library — same as kwami-app panel.
-    const { randomBlobSkinType } = await import('kwami') as any;
-
-    const doRandomize = () => {
-      if (!blob) return;
-
-      // Pick a random subtype using the library randomizer (matches app panel behavior).
-      // `setSkin` takes the skin name directly (BlobXyzSkin is a string union).
-      const subtype: Subtype = randomBlobSkinType?.() ?? ALL_SUBTYPES[Math.floor(Math.random() * ALL_SUBTYPES.length)]!;
-      try { kwami.avatar.setSkin(subtype); } catch {}
-      try { blob.setColors(randColor(), randColor(), randColor()); } catch {}
-      try { kwami.avatar.setShininess(rand(10, 180)); } catch {}
-      try { kwami.avatar.setWireframe(Math.random() > 0.85); } catch {}
-      try { blob.setSpikes(rand(0.1, 3), rand(0.1, 3), rand(0.1, 3)); } catch {}
-      try { blob.setAmplitude(rand(0.3, 1.5), rand(0.3, 1.5), rand(0.3, 1.5)); } catch {}
-      try { blob.setTime(rand(0.5, 8), rand(0.5, 8), rand(0.5, 8)); } catch {}
-
-      randomizeCount += 1;
-      if (randomizeCount % 5 === 0) {
-        burstRemaining = Math.PI / (4);
-      }
-    };
-
-    doRandomize();
-    randomizeTimer = setInterval(doRandomize, RANDOMIZE_INTERVAL_MS);
-  }
 
   const onPreviewStart = async (event: Event) => {
     const customEvent = event as CustomEvent<{ stream?: MediaStream }>;
@@ -238,11 +202,9 @@ onMounted(async () => {
 });
 
 onUnmounted(async () => {
-  if (randomizeTimer !== null) { clearInterval(randomizeTimer); randomizeTimer = null; }
-  if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
-  if (removePointerHandlers) { removePointerHandlers(); removePointerHandlers = null; }
+  if (presetTimer !== null) { clearInterval(presetTimer); presetTimer = null; }
+  if (removeClickHandler) { removeClickHandler(); removeClickHandler = null; }
   if (removePreviewAudioHandlers) { removePreviewAudioHandlers(); removePreviewAudioHandlers = null; }
-  if (removeClickProxyHandler) { removeClickProxyHandler(); removeClickProxyHandler = null; }
   const k = kwamiRef.value;
   if (k) { await k.dispose(); kwamiRef.value = null; }
 });
