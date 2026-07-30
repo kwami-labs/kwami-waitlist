@@ -4,3 +4,5 @@ allowBuilds:
   # workerd is wrangler's local Workers runtime; its install script fetches the
   # platform binary, so it has to be allowed for `wrangler dev` to work.
   workerd: true
+minimumReleaseAgeExclude:
+  - kwami@2.1.0
