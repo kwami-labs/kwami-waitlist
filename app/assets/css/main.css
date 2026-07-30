@@ -6,7 +6,11 @@
 
 html,
 body {
-  min-height: 100%;
+  /* Fullscreen, non-scrolling landing. `overscroll-behavior: none` stops the
+     iOS/Android rubber-band bounce that `overflow: hidden` alone allows. */
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: #050608;
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;

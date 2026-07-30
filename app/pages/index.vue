@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import memoryGraphMock from '~/assets/data/memory-graph.mock.json';
-import personalitiesMock from '~/assets/data/personalities.mock.json';
+// Single fullscreen waitlist page — no scrolling.
+//
+// The scrolling landing experience (feature sections, phone, memory graph,
+// footer) is archived, not deleted. To bring it back, restore the previous
+// version of this file from git and re-add the assets it needs:
+//   git show HEAD:app/pages/index.vue
+// The components it used still live in app/components/ and the scroll driver
+// in app/composables/useScrollAnimations.ts.
 
 const {
   email,
@@ -9,190 +15,75 @@ const {
   canSubmit,
   submit,
 } = useWaitlistForm();
-
-const {
-  infoFade,
-  phoneProgress,
-  blobPhoneProgress,
-  memoryGraphStyle,
-  blobStyle,
-  titleStyle,
-  introFormStyle,
-  headerBgOpacity,
-  introCopyStyle,
-} = useScrollAnimations();
-
-const features = [
-  {
-    letter: 'SOUL',
-    title: 'Soul that adapts to you',
-    description:
-      'Kwami keeps a stable personality while adapting tone, rhythm, and expression to your style.',
-  },
-  {
-    letter: 'MEMORY',
-    title: 'Memory that stays useful',
-    description:
-      'Important context is remembered and surfaced at the right moment, so each conversation can continue naturally.',
-  },
-  {
-    letter: 'VOICE',
-    title: 'Real-time voice interaction',
-    description:
-      'Low-latency speech with expressive audio makes interactions feel like a live companion, not a chatbot.',
-  },
-  {
-    letter: 'TOOLS',
-    title: 'Tools connected to your workflow',
-    description:
-      'Kwami can call tools, act on context, and turn conversations into real actions across your environment.',
-  },
-];
-
-const phoneFeatures = [
-  {
-    eyebrow: 'Voice calls',
-    heading: 'Call your\ncompanion',
-    desc: 'Start a real-time voice call with Kwami. It listens, responds, and reacts with expressive 3D animation — like talking to someone who actually gets you.',
-  },
-  {
-    eyebrow: 'Video chats',
-    heading: 'Face to\nface',
-    desc: 'Kwami shows up as a living 3D avatar on your screen. See it react, emote, and express itself while you talk — no static chatbot interface.',
-  },
-  {
-    eyebrow: 'Always with you',
-    heading: 'Your pocket\ncompanion',
-    desc: 'Whether you need a quick answer, a creative brainstorm, or just someone to talk to — Kwami is one tap away, anywhere.',
-  },
-];
 </script>
 
 <template>
   <div class="page">
     <div class="ambient" aria-hidden="true" />
 
-    <!-- Header background: fades in as elements reach header position -->
-    <div
-      class="header-bg"
-      :style="{ opacity: headerBgOpacity }"
-      aria-hidden="true"
-    />
-
-    <!-- Title: fixed, interpolates from hero center → top-left header -->
-    <h1 class="hero-title" :style="titleStyle" aria-label="kwami">
-      <span class="title-main">KWAMI</span>
-    </h1>
-
-    <!-- Subtitle: fixed but fades away with hero copy -->
-    <p class="title-sub" :style="introCopyStyle">THE AI THAT FEELS ALIVE</p>
-
-    <!-- Form: fixed, interpolates from hero center → top-right header -->
-    <div class="hero-form-wrapper" :style="introFormStyle">
-      <Transition name="swap" mode="out-in">
-        <div v-if="status !== 'success'" key="form">
-          <form class="hero-form" @submit.prevent="submit">
-            <label class="sr-only" for="hero-email">Email</label>
-            <div class="form-row">
-              <input
-                id="hero-email"
-                :value="email"
-                class="input"
-                type="email"
-                name="email"
-                autocomplete="email"
-                placeholder="you@example.com"
-                :disabled="status === 'loading'"
-                @input="email = ($event.target as HTMLInputElement).value"
-              />
-              <button class="btn" type="submit" :disabled="!canSubmit || status === 'loading'">
-                <span v-if="status === 'loading'" class="btn-inner">
-                  <span class="spinner" />
-                  Joining...
-                </span>
-                <span v-else class="btn-inner">Join waitlist</span>
-              </button>
-            </div>
-          </form>
-          <Transition name="slide">
-            <p v-if="message && status === 'error'" class="feedback is-error">
-              {{ message }}
-            </p>
-          </Transition>
-        </div>
-        <div v-else key="success" class="success-content">
-          <h2 class="success-title">You're on the list</h2>
-          <p class="success-text">We will send one email when Kwami launches.</p>
-        </div>
-      </Transition>
-    </div>
-
-    <!-- Blob: fixed, shifts left during features, right into phone -->
-    <div class="blob-zone" :style="blobStyle">
+    <div class="blob-zone">
       <ClientOnly>
-        <Blob :phone-progress="blobPhoneProgress" />
+        <Blob />
         <template #fallback>
           <div class="blob-fallback" aria-hidden="true" />
         </template>
       </ClientOnly>
     </div>
 
-    <!-- Phone: fixed, right half, enters after features -->
-    <ClientOnly>
-      <Phone :progress="phoneProgress" />
-    </ClientOnly>
+    <main class="hero">
+      <h1 class="hero-title" aria-label="kwami">
+        <span class="title-main">KWAMI</span>
+      </h1>
 
-    <div class="memory-graph-overlay" :style="memoryGraphStyle" aria-hidden="true">
-      <ClientOnly>
-        <MemoryGraph3D :graph="memoryGraphMock" />
-      </ClientOnly>
-    </div>
+      <p class="title-sub">THE AI THAT FEELS ALIVE</p>
 
-    <main class="scroll-main">
-      <!-- Phase 1: Hero (spacer + intro copy that fades) -->
-      <HeroSection
-        :info-fade="infoFade"
-        :intro-copy-style="introCopyStyle"
-      />
-
-      <!-- Phase 2: Feature sections — blob left, text right -->
-      <template v-for="feature in features" :key="feature.letter">
-        <SoulSection
-          v-if="feature.letter === 'SOUL'"
-          id="soul"
-          :letter="feature.letter"
-          :title="feature.title"
-          :description="feature.description"
-          :personalities="personalitiesMock"
-        />
-        <FeatureSection
-          v-else
-          :id="feature.letter.toLowerCase()"
-          :letter="feature.letter"
-          :title="feature.title"
-          :description="feature.description"
-        />
-      </template>
-
-      <!-- Phase 3-5: Phone features — each one is a full scroll section, text on the left -->
-      <PhoneFeatureSection
-        v-for="(pf, i) in phoneFeatures"
-        :key="'pf-' + i"
-        :eyebrow="pf.eyebrow"
-        :heading="pf.heading"
-        :desc="pf.desc"
-      />
+      <div class="hero-form-wrapper">
+        <Transition name="swap" mode="out-in">
+          <div v-if="status !== 'success'" key="form">
+            <form class="hero-form" @submit.prevent="submit">
+              <label class="sr-only" for="hero-email">Email</label>
+              <div class="form-row">
+                <input
+                  id="hero-email"
+                  :value="email"
+                  class="input"
+                  type="email"
+                  name="email"
+                  autocomplete="email"
+                  placeholder="you@example.com"
+                  :disabled="status === 'loading'"
+                  @input="email = ($event.target as HTMLInputElement).value"
+                />
+                <button class="btn" type="submit" :disabled="!canSubmit || status === 'loading'">
+                  <span v-if="status === 'loading'" class="btn-inner">
+                    <span class="spinner" />
+                    Joining...
+                  </span>
+                  <span v-else class="btn-inner">Join waitlist</span>
+                </button>
+              </div>
+            </form>
+            <Transition name="slide">
+              <p v-if="message && status === 'error'" class="feedback is-error">
+                {{ message }}
+              </p>
+            </Transition>
+          </div>
+          <div v-else key="success" class="success-content">
+            <h2 class="success-title">You're on the list</h2>
+            <p class="success-text">We will send one email when Kwami launches.</p>
+          </div>
+        </Transition>
+      </div>
     </main>
-
-    <Footer />
   </div>
 </template>
 
 <style scoped>
 .page {
-  min-height: 100dvh;
-  position: relative;
-  overflow-x: hidden;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
   background:
     radial-gradient(ellipse 120% 82% at 50% -20%, rgba(53, 158, 238, 0.1), transparent 55%),
     radial-gradient(ellipse 76% 55% at 82% 32%, rgba(239, 71, 111, 0.08), transparent 52%),
@@ -201,7 +92,7 @@ const phoneFeatures = [
 }
 
 .ambient {
-  position: fixed;
+  position: absolute;
   top: -20%;
   left: 50%;
   transform: translateX(-50%);
@@ -213,20 +104,33 @@ const phoneFeatures = [
   z-index: 0;
 }
 
-/* Header background gradient */
-.header-bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 64px;
-  z-index: 30;
-  background: linear-gradient(180deg, rgba(7, 9, 14, 0.92) 0%, rgba(7, 9, 14, 0) 100%);
-  pointer-events: none;
-  transition: opacity 120ms ease;
+.blob-zone {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
 }
 
-/* Floating title */
+.blob-fallback {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 55% at 50% 50%, rgba(53, 158, 238, 0.1), transparent 65%);
+}
+
+/* Fullscreen hero — everything sits in one non-scrolling column. */
+.hero {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  padding: 1.6rem;
+  /* Let pointer events through to the blob canvas; re-enabled on the form. */
+  pointer-events: none;
+}
+
 .hero-title {
   margin: 0;
   text-align: center;
@@ -244,11 +148,6 @@ const phoneFeatures = [
 }
 
 .title-sub {
-  position: fixed;
-  left: 50%;
-  top: 52%;
-  transform: translateX(-50%);
-  z-index: 31;
   margin: 0;
   font-size: clamp(0.75rem, 1.9vw, 1.1rem);
   letter-spacing: 0.42em;
@@ -256,12 +155,12 @@ const phoneFeatures = [
   color: rgba(180, 188, 210, 0.9);
   text-align: center;
   white-space: nowrap;
-  pointer-events: none;
 }
 
-/* Floating form wrapper */
 .hero-form-wrapper {
   width: min(100%, 31rem);
+  margin-top: 0.9rem;
+  pointer-events: auto;
 }
 
 .form-row {
@@ -323,6 +222,7 @@ const phoneFeatures = [
 .feedback {
   margin-top: 0.8rem;
   font-size: 0.8rem;
+  text-align: center;
 }
 
 .feedback.is-error {
@@ -377,38 +277,7 @@ const phoneFeatures = [
   }
 }
 
-.blob-zone {
-  position: fixed;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  transition: transform 120ms linear;
-}
-
-.memory-graph-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 8;
-  pointer-events: none;
-  transition: transform 180ms linear, opacity 180ms ease;
-}
-
-.blob-fallback {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 60% 55% at 50% 50%, rgba(53, 158, 238, 0.1), transparent 65%);
-}
-
-.scroll-main {
-  position: relative;
-  z-index: 10;
-}
-
 @media (max-width: 780px) {
-  .scroll-main {
-    overflow-x: clip;
-  }
-
   .form-row {
     flex-direction: column;
   }
