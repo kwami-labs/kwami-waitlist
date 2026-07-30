@@ -1,7 +1,8 @@
 import { ref, computed } from 'vue';
+import type { Database } from '~/types/database';
 
 export function useWaitlistForm() {
-  const supabase = useSupabaseClient();
+  const supabase = useSupabaseClient<Database>();
   const email = ref('');
   const status = ref<'idle' | 'loading' | 'success' | 'error'>('idle');
   const message = ref('');
