@@ -101,41 +101,14 @@ Connect the repo in the Cloudflare dashboard with:
 - **Build output directory:** `.output/public`
 - **Environment variables:** `SUPABASE_URL`, `SUPABASE_KEY`
 
-> **This does not work yet.** `package.json` currently depends on
-> `"kwami": "file:../kwami"`, a path that only exists on a machine with the
-> sibling `kwami` repo checked out. See below.
+This app depends on the published `kwami@^2.1.0` package from npm (not a
+local `file:` path), so Workers Builds can install dependencies normally.
 
-## Known issue: the `kwami` dependency
-
-`kwami` is consumed from the local checkout at `../kwami`, which CI cannot
-resolve. The published `kwami@2.0.0` on npm is **not** a drop-in replacement —
-its blob API differs:
-
-| | published `2.0.0` | local `../kwami` |
-| --- | --- | --- |
-| `avatarBlobPresets` | not exported | 12 curated presets |
-| `setSkin` argument | `{ skin: 'tricolor', subtype }` | `'marble'` (plain string) |
-| Available skins | 3 tricolor subtypes | 22 skins |
-| `setTransitionSpeed`, `setCursorFollowEnabled`, `triggerPulse` | absent | present |
-
-`app/components/Blob.vue` is written against the **local** API and cannot fall
-back to `2.0.0` — it is built on `avatarBlobPresets`, which that version does
-not ship at all.
-
-`../kwami` is already prepared for release: the self-referential dependency on
-itself has been removed, the version bumped to **2.1.0**, and `dist` rebuilt
-(verified via `pnpm pack` — 12 blob presets present, no self-dep). All that is
-left is the publish, then repointing this project at the registry:
-
-```bash
-# in ../kwami  (branch: dev — commit the version bump first)
-pnpm publish
-
-# back here
-pnpm remove kwami && pnpm add kwami@^2.1.0
-```
-
-Then remove the warning under "Deploy on git push" above.
+If a build still fails looking for `/opt/buildhome/kwami`, it is almost
+certainly a **retry of an old commit** that still used `file:../kwami`, or a
+stale dependency cache. Trigger a new build from latest `main` (or clear the
+Workers Builds dependency cache under **Settings → Builds**), do not retry the
+old failed job.
 
 ## Restoring the long-form landing page
 
