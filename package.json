@@ -2,12 +2,17 @@
   "name": "kwami-waitlist",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "cf:preview": "wrangler dev",
+    "cf:deploy": "pnpm generate && wrangler deploy",
+    "cf:deploy:dry": "pnpm generate && wrangler deploy --dry-run",
+    "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@nuxtjs/supabase": "^2.0.0",
@@ -18,7 +23,9 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
+    "@types/three": "^0.185.1",
     "typescript": "^5.7.2",
-    "vue-tsc": "^2.2.0"
+    "vue-tsc": "^2.2.0",
+    "wrangler": "^4.115.0"
   }
 }

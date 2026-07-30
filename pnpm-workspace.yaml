@@ -1,3 +1,6 @@
 allowBuilds:
   '@parcel/watcher': true
   esbuild: true
+  # workerd is wrangler's local Workers runtime; its install script fetches the
+  # platform binary, so it has to be allowed for `wrangler dev` to work.
+  workerd: true

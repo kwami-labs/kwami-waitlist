@@ -5,3 +5,12 @@ dist
 .env
 .DS_Store
 *.log
+
+# Cloudflare / wrangler
+.wrangler
+.dev.vars
+
+# Other package managers — this project uses pnpm
+bun.lock
+package-lock.json
+yarn.lock

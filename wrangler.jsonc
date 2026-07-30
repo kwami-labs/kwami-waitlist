@@ -1,0 +1,24 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kwami-waitlist",
+  "compatibility_date": "2026-07-01",
+
+  // Assets-only Worker: there is no `main` entrypoint, so every request is
+  // served straight from Cloudflare's CDN and no Worker code is invoked
+  // (no request billing). The site is fully prerendered by `pnpm generate`.
+  //
+  // If server routes are ever added under server/, switch nuxt.config.ts to
+  // `nitro: { preset: 'cloudflare_module' }`, run `pnpm build`, and add:
+  //   "main": ".output/server/index.mjs",
+  //   "compatibility_flags": ["nodejs_compat"],
+  //   "assets": { ..., "binding": "ASSETS" }
+  "assets": {
+    "directory": ".output/public",
+    // Single page — anything unmatched falls back to the generated 404 page.
+    "not_found_handling": "404-page"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}
