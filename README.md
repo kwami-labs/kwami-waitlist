@@ -7,6 +7,25 @@ straight to Supabase from the browser.
 There is no server code — the site is fully prerendered and served from
 Cloudflare's CDN.
 
+## The blob
+
+`app/components/Blob.vue` cycles through the library's 12 curated presets
+(`avatarBlobPresets`) every 7s, morphing between them via `setTransitionSpeed`
+rather than snapping. Each preset is a designed look — coordinated palette,
+matched shininess/opacity/light, tuned spikes and wave timing.
+
+Two things are deliberately overridden per preset: **scale**, because the hero
+needs the blob sized to fill the viewport, and **resolution**, which is capped
+at 160 on viewports ≤768px since presets go up to 280.
+
+Cursor tracking and click pulses use the renderer's own `setCursorFollowEnabled`
+and `triggerPulse`. Preset cycling is disabled under
+`prefers-reduced-motion: reduce`, which settles on a single look.
+
+Note that the presets only use 3 of the 22 available skins (`radial`, `banded`,
+`striped`) — chrome, jade, hologram, iridescent, plasma and the rest never
+appear.
+
 ## Stack
 
 | Piece | What it does |
@@ -94,10 +113,14 @@ its blob API differs:
 
 | | published `2.0.0` | local `../kwami` |
 | --- | --- | --- |
+| `avatarBlobPresets` | not exported | 12 curated presets |
 | `setSkin` argument | `{ skin: 'tricolor', subtype }` | `'marble'` (plain string) |
 | Available skins | 3 tricolor subtypes | 22 skins |
+| `setTransitionSpeed`, `setCursorFollowEnabled`, `triggerPulse` | absent | present |
 
-`app/components/Blob.vue` is written against the **local** API.
+`app/components/Blob.vue` is written against the **local** API and cannot fall
+back to `2.0.0` — it is built on `avatarBlobPresets`, which that version does
+not ship at all.
 
 To unblock git-push deploys, publish the current `kwami` and switch this
 project to the registry version:
